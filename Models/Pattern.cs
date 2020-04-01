@@ -6,6 +6,7 @@ using System.Linq;
 namespace dmf2amps.Models {
 	public class Pattern {
 		public Row[] Rows { get; }
+		public string AmpsName { get; set; }
 
 		public Pattern(DMF dmf, BinaryReader br, byte effectsCount) {
 			Rows = new Row[dmf.TotalRowsPerPattern];

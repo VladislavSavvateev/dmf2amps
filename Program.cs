@@ -17,6 +17,8 @@ namespace dmf2amps {
                 }
                 
                 var dmf = new DMF(DecompressDmf(args[0]));
+
+                using (var sw = new StreamWriter("/home/savok/AMPS/AMPS/music/SmoothCriminal.s2a")) sw.Write(dmf.ConvertToAmps());
             }
         }
 

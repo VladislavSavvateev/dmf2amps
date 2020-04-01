@@ -23,5 +23,19 @@ namespace dmf2amps.Models {
 			hashCode = hashCode * -1521134295 + Value.GetHashCode();
 			return hashCode;
 		}
+
+		public string ToAmpsCoord() {
+			if (Code == 8) {
+				var pan = "\tsPan\t";
+				
+				if ((Value & 0b1111) != 0 && Value >> 4 == 0) pan += "spRight\n";
+				else if ((Value & 0b1111) == 0 && Value >> 4 != 0) pan += "spLeft\n";
+				else pan += "spCenter\n";
+
+				return pan;
+			}
+
+			return null;
+		}
 	}
 }

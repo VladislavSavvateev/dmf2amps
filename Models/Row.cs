@@ -5,20 +5,20 @@ using System.IO;
 
  namespace dmf2amps.Models {
 	public class Row {
-		private static readonly string[] Notes = {
+		public static readonly string[] Notes = {
 			"",
-			"C#",
-			"D-",
-			"D#",
-			"E-",
-			"F-",
-			"F#",
-			"G-",
-			"G#",
-			"A-",
-			"A#",
-			"B-",
-			"C-"
+			"nCs",
+			"nD",
+			"nEb",
+			"nE",
+			"nF",
+			"nFs",
+			"nG",
+			"nAb",
+			"nA",
+			"nBb",
+			"nB",
+			"nC"
 		};
 		
 		public UInt16 Note { get; }

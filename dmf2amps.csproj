@@ -43,6 +43,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Models\Amps\Commands\ICommand.cs" />
+    <Compile Include="Models\Amps\Commands\SetPan.cs" />
+    <Compile Include="Models\Amps\Commands\SetVoice.cs" />
+    <Compile Include="Models\Amps\Commands\SetVolume.cs" />
+    <Compile Include="Models\Amps\IEntity.cs" />
+    <Compile Include="Models\Amps\Note.cs" />
     <Compile Include="Models\Channel.cs" />
     <Compile Include="Models\DMF.cs" />
     <Compile Include="Models\Effect.cs" />

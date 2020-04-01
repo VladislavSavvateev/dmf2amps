@@ -1,7 +1,9 @@
 ﻿﻿using System;
  using System.IO;
+ using dmf2amps.Models.Amps;
+ using dmf2amps.Models.Amps.Commands;
 
-namespace dmf2amps.Models {
+ namespace dmf2amps.Models {
 	public class Effect {
 		public short Code { get; }
 		public short Value { get; }
@@ -24,17 +26,11 @@ namespace dmf2amps.Models {
 			return hashCode;
 		}
 
-		public string ToAmpsCoord() {
-			if (Code == 8) {
-				var pan = "\tsPan\t";
-				
-				if ((Value & 0b1111) != 0 && Value >> 4 == 0) pan += "spRight\n";
-				else if ((Value & 0b1111) == 0 && Value >> 4 != 0) pan += "spLeft\n";
-				else pan += "spCenter\n";
-
-				return pan;
+		public IEntity ToAmpsCoord() {
+			switch (Code) {
+				case 8: return new SetPan(Value);
 			}
-
+			
 			return null;
 		}
 	}

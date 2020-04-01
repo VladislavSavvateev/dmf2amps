@@ -5,22 +5,6 @@ using System.IO;
 
  namespace dmf2amps.Models {
 	public class Row {
-		public static readonly string[] Notes = {
-			"",
-			"nCs",
-			"nD",
-			"nEb",
-			"nE",
-			"nF",
-			"nFs",
-			"nG",
-			"nAb",
-			"nA",
-			"nBb",
-			"nB",
-			"nC"
-		};
-		
 		public UInt16 Note { get; }
 		public UInt16 Octave { get; }
 		public short Volume { get; }
@@ -41,7 +25,7 @@ using System.IO;
 
 		public override string ToString() {
 			var result =
-				$"{(Note == 100 ? "NOFF" : Note != 0 ? Notes[Note] : "")}{(Note == 100 ? "" : Note != 0 ? Octave.ToString() : "")} " +
+				$"{(Note == 100 ? "NOFF" : Note != 0 ? Amps.Note.Values[Note] : "")}{(Note == 100 ? "" : Note != 0 ? Octave.ToString() : "")} " +
 				$"{(Volume != -1 ? Volume.ToString("X") : "")} " +
 				$"{(Instrument != -1 ? Instrument.ToString("X") : "")}";
 

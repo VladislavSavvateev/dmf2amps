@@ -11,7 +11,7 @@ namespace dmf2amps.Models {
         
         public Tempo Tempo { get; }
         
-        public byte[,] PatternMatrixValues { get; }
+        public byte[][] PatternMatrixValues { get; }
         
         public List<Instrument> Instruments { get; }
         
@@ -48,10 +48,15 @@ namespace dmf2amps.Models {
             TotalRowsPerPattern = StaticBinaryReader.ReadUInt32(stream);
             TotalRowsInPatternMatrix = (byte)stream.ReadByte();
             
-            PatternMatrixValues = new byte[10, TotalRowsInPatternMatrix];
-            for (var ch = 0; ch < 10; ch++) 
-                for (var row = 0; row < TotalRowsInPatternMatrix; row++) 
-                    PatternMatrixValues[ch, row] = (byte)stream.ReadByte();
+            PatternMatrixValues = new byte[10][];
+            for (var ch = 0; ch < 10; ch++) {
+                var matrixValues = new byte[TotalRowsInPatternMatrix];
+                for (var row = 0; row < TotalRowsInPatternMatrix; row++) {
+                    matrixValues[row] = (byte) stream.ReadByte();
+                }
+
+                PatternMatrixValues[ch] = matrixValues;
+            }
 
             var totalInstruments = stream.ReadByte();
             Instruments = new List<Instrument>();
@@ -67,7 +72,7 @@ namespace dmf2amps.Models {
             }
             
             Channels = new List<Channel>();
-            for (var i = 0; i < 10; i++) Channels.Add(new Channel(this, br));
+            for (var i = 0; i < 10; i++) Channels.Add(new Channel(this, br, PatternMatrixValues[i]));
             
             Samples = new List<Sample>();
             var totalSamples = stream.ReadByte();
@@ -123,7 +128,7 @@ namespace dmf2amps.Models {
 
                     if (pattern.AmpsName == null)
                         pattern =
-                            channel.Patterns.FirstOrDefault(p => !ReferenceEquals(p, pattern) && p.Equals(pattern)) ??
+                            channel.Patterns.FirstOrDefault(p => !ReferenceEquals(p, pattern) && p.MatrixValue == pattern.MatrixValue && p.AmpsName != null) ??
                             pattern;
 
                     if (pattern.AmpsName == null) {
@@ -163,7 +168,7 @@ namespace dmf2amps.Models {
             var dac = Channels[5];
             var dacChannelData = $"\n{labelName}_DAC1:\n";
             for (var p_i = 0; p_i < TotalRowsInPatternMatrix; p_i++) {
-                var pattern = dac.Patterns[PatternMatrixValues[5, p_i]];
+                var pattern = dac.Patterns[PatternMatrixValues[5][p_i]];
 
                 if (pattern.AmpsName == null)
                     pattern =
@@ -187,7 +192,7 @@ namespace dmf2amps.Models {
 
                 var channelData = $"\n{labelName}_PSG{i - 6}:\n";
                 for (var p_i = 0; p_i < TotalRowsInPatternMatrix; p_i++) {
-                    var pattern = channel.Patterns[PatternMatrixValues[i, p_i]];
+                    var pattern = channel.Patterns[PatternMatrixValues[i][p_i]];
 
                     if (pattern.AmpsName == null)
                         pattern =

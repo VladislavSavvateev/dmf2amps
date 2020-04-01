@@ -7,9 +7,12 @@ namespace dmf2amps.Models {
 	public class Pattern {
 		public Row[] Rows { get; }
 		public string AmpsName { get; set; }
+		
+		public byte MatrixValue { get; }
 
-		public Pattern(DMF dmf, BinaryReader br, byte effectsCount) {
+		public Pattern(DMF dmf, BinaryReader br, byte effectsCount, byte matrixValue) {
 			Rows = new Row[dmf.TotalRowsPerPattern];
+			MatrixValue = matrixValue;
 
 			for (var i = 0; i < dmf.TotalRowsPerPattern; i++) 
 				Rows[i] = new Row(effectsCount, br);

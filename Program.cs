@@ -1,25 +1,68 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using dmf2amps.Models;
 using zlib;
 
 namespace dmf2amps {
     internal class Program {
+        private static string InputFile { get; set; }
+        private static string OutputFile { get; set; }
+    
         public static void Main(string[] args) {
             Console.WriteLine("dmf2amps v1.0 by VladislavSavvateev");
-            if (args.Length == 0) {
-                PrintError("There is no input file.");
+
+            if (!ParseArgs(args)) return;
+            
+            if (InputFile == null) {
+                PrintError("there is no input file");
+            } else if (OutputFile == null) {
+                PrintError("there is no output file");
             } else {
-                var file = new FileInfo(args[0]);
+                var file = new FileInfo(InputFile);
                 if (!file.Exists) {
-                    PrintError("File not found!");
+                    PrintError("file not found!");
                     return;
                 }
                 
-                var dmf = new DMF(DecompressDmf(args[0]));
+                var dmf = new DMF(DecompressDmf(InputFile));
 
-                using (var sw = new StreamWriter("/home/savok/AMPS/AMPS/music/SmoothCriminal.s2a")) sw.Write(dmf.ConvertToAmps());
+                using var sw = new StreamWriter(OutputFile);
+                sw.Write(dmf.ConvertToAmps());
             }
+        }
+
+        public static bool ParseArgs(string[] args) {
+            for (var i = 0; i < args.Length; i++) {
+                switch (args[i]) {
+                    case "-i":
+                    case "--input":
+                        InputFile = args[++i];
+                        break;
+                    case "-o":
+                    case "--output":
+                        OutputFile = args[++i];
+                        break;
+                    case "-h":
+                    case "--help":
+                        PrintHelp();
+                        return false;
+                    default:
+                        PrintError($"unrecognized parameter: {args[i]}");
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
+        public static void PrintHelp() {
+            Console.WriteLine("Usage: dmf2amps.exe [-h] -i INPUT_FILE -o OUTPUT_FILE\n\n"
+                              
+                              + "Parameters:\n"
+                              + "\t-i, --input        Input file (really?)\n"
+                              + "\t-o, --output       Output file (omg)\n"
+                              + "\t-h, --help         Shows this nice text\n");
         }
 
         public static void PrintError(string message)

@@ -130,7 +130,7 @@ namespace dmf2amps.Models {
 
                     if (pattern.AmpsName == null)
                         pattern =
-                            channel.Patterns.FirstOrDefault(p => !ReferenceEquals(p, pattern) && p.MatrixValue == pattern.MatrixValue && p.AmpsName != null) ??
+                            channel.Patterns.FirstOrDefault(p => !ReferenceEquals(p, pattern) && p.MatrixValue == pattern?.MatrixValue && p.AmpsName != null) ??
                             pattern;
 
                     if (pattern.AmpsName == null) {
@@ -203,26 +203,6 @@ namespace dmf2amps.Models {
 
                             if (lastEntity.Value == entity.Value) entity.Value = "";
                         }
-
-                        /*for (var r_i = 0; r_i < pattern.Rows.Length; r_i++) {
-                            var row = pattern.Rows[r_i];
-
-                            if (row.Volume != -1) 
-                                result += $"\tssVol\t${0x7F - row.Volume:X2}\n";
-
-                            if (row.Instrument != -1)
-                                result += $"\tsVoice\t${Instruments[row.Instrument].FM.Offset:X2}\n";
-
-                            result = row.Effects.Select(e => e.ToAmpsCoord())
-                                .Where(str => !string.IsNullOrWhiteSpace(str))
-                                .Aggregate(result, (current, str) => current + str);
-
-                            if (row.Note == 100)
-                                result += $"\tdc.b\tnRst, ${(r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime):X2}\n";
-                            else if (row.Note == 0 && row.Octave == 0)
-                                result += $"\tdc.b\tsHold, ${(r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime):X2}\n";
-                            else result += $"\tdc.b\t{Note.Values[row.Note]}{row.Octave}, ${(r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime):X2}\n";
-                        }*/
 
                         for (var e = 0; e < entities.Count; e++) {
                             if (entities[e] is Note note) {

@@ -8,6 +8,8 @@ namespace dmf2amps {
     internal class Program {
         private static string InputFile { get; set; }
         private static string OutputFile { get; set; }
+        
+        public static bool ReverseDacChanges { get; set; }
     
         public static void Main(string[] args) {
             Console.WriteLine("dmf2amps v1.0 by VladislavSavvateev");
@@ -28,7 +30,7 @@ namespace dmf2amps {
                 var dmf = new DMF(DecompressDmf(InputFile));
 
                 using var sw = new StreamWriter(OutputFile);
-                sw.Write(dmf.ConvertToAmps());
+                dmf.ConvertToAmps(sw);
             }
         }
 
@@ -47,6 +49,10 @@ namespace dmf2amps {
                     case "--help":
                         PrintHelp();
                         return false;
+                    case "--reverse-dac":
+                    case "-r":
+                        ReverseDacChanges = true;
+                        break;
                     default:
                         PrintError($"unrecognized parameter: {args[i]}");
                         return false;
@@ -56,13 +62,17 @@ namespace dmf2amps {
             return true;
         }
 
-        public static void PrintHelp() {
+        private static void PrintHelp() {
             Console.WriteLine("Usage: dmf2amps.exe [-h] -i INPUT_FILE -o OUTPUT_FILE\n\n"
                               
                               + "Parameters:\n"
                               + "\t-i, --input        Input file (really?)\n"
                               + "\t-o, --output       Output file (omg)\n"
-                              + "\t-h, --help         Shows this nice text\n");
+                              + "\t-h, --help         Shows this nice text\n"
+                              + "\t-r, --reverse-dac  Reverse start FM6/DAC behaviour."
+                              + "                     By default, every song starts "
+                              + "                     with notes (not samples) on track"
+                              + "                     FM6.");
         }
 
         public static void PrintError(string message)

@@ -84,12 +84,12 @@ namespace dmf2amps.Models {
             Console.WriteLine();
         }
 
-        public string ConvertToAmps() {
+        public void ConvertToAmps(StreamWriter result) {
             var labelName = GenerateLabelName();
             if (string.IsNullOrWhiteSpace(labelName)) labelName = GenerateRandomSuffix();
             if (labelName.Length > 8) labelName = labelName.Substring(0, 8);
 
-            var result = $"; {new string('=', 72)}\n" +
+            result.Write($"; {new string('=', 72)}\n" +
                          $"; {SongName} by {SongAuthor}\n" +
                          "; Converted with dmf2amps v1.0 by VladislavSavvateev\n" +
                          $"; {new string('=', 72)}\n\n" +
@@ -105,17 +105,18 @@ namespace dmf2amps.Models {
                          $"\tsHeaderFM\t{labelName}_FM3, $00, $00\n" +
                          $"\tsHeaderFM\t{labelName}_FM4, $00, $00\n" +
                          $"\tsHeaderFM\t{labelName}_FM5, $00, $00\n" +
+                         $"\tsHeaderFM\t{labelName}_FM6, $00, $00\n" +
                          $"\tsHeaderPSG\t{labelName}_PSG1, $00, $00, $00, $00\n" +
                          $"\tsHeaderPSG\t{labelName}_PSG2, $00, $00, $00, $00\n" +
-                         $"\tsHeaderPSG\t{labelName}_PSG3, $00, $00, $00, $00\n\n";
+                         $"\tsHeaderPSG\t{labelName}_PSG3, $00, $00, $00, $00\n\n");
 
-            result += "; Instruments\n\n";
+            result.Write("; Instruments\n\n");
 
             // add some instruments
             byte fmCounter = 0;
             foreach (var ins in Instruments.Where(ins => ins.Type == Instrument.InstrumentType.FM)) {
-                result += $"; ${fmCounter:X2}: {ins.Name}\n";
-	            result += ins.FM;
+                result.Write($"; ${fmCounter:X2}: {ins.Name}\n");
+	            result.Write(ins.FM);
 	            ins.FM.Offset = fmCounter++;
             }
 
@@ -135,7 +136,7 @@ namespace dmf2amps.Models {
 
                     if (pattern.AmpsName == null) {
 	                    pattern.AmpsName = $"{labelName}_FM{i + 1}_{p_i}";
-	                    result += $"{pattern.AmpsName}:\n";
+	                    result.Write($"{pattern.AmpsName}:\n");
 
                         List<IEntity> entities = new List<IEntity>();
                         
@@ -158,112 +159,142 @@ namespace dmf2amps.Models {
                             else entities.Add(new Note(row.Note, row.Octave, r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime));
                         }
 
-                        // sum sHolds
-                        for (var e = 1; e < entities.Count; e++) {
-                            if (!(entities[e] is Note entity) || !(entities[e - 1] is Note lastEntity)) continue;
-                            if (lastEntity.Value != entity.Value || entity.Value != Note.sHold) continue;
+                        // opts
+                        SumHolds(entities);
+                        CombineHoldsWithNote(entities);
+                        SumHolds(entities);
+                        RemoveDuplicateSetVolumes(entities);
+                        OptimizeDuplicateNotes(entities);
 
-                            if (lastEntity.Duration + entity.Duration > 0x7F) {
-                                entity.Duration = lastEntity.Duration + entity.Duration - 0x7F;
-                                lastEntity.Duration = 0x7F;
-                            } else {
-                                lastEntity.Duration += entity.Duration;
-                                entities.Remove(entity);
-                                e--;
-                            }
-                        }
+                        ExportEntities(entities, result);
                         
-                        // combine sHolds with notes
-                        for (var e = 1; e < entities.Count; e++) {
-                            if (!(entities[e] is Note entity) || !(entities[e - 1] is Note lastEntity)) continue;
-                            if (entity.Value != Note.sHold || e == entities.Count - 1) continue;
-
-                            if (lastEntity.Duration + entity.Duration > 0x7F) {
-                                entity.Duration = lastEntity.Duration + entity.Duration - 0x7F;
-                                lastEntity.Duration = 0x7F;
-                            } else {
-                                lastEntity.Duration += entity.Duration;
-                                entities.Remove(entity);
-                                e--;
-                            }
-                        }
-
-                        var onlySetVolumes = entities.OfType<SetVoice>().ToList();
-                        for (var e = 1; e < onlySetVolumes.Count; e++) {
-                            var lastEntity = onlySetVolumes[e - 1];
-                            var entity = onlySetVolumes[e];
-
-                            if (lastEntity.Value == entity.Value) entities.Remove(entity);
-                        }
-
-                        var onlyNotes = entities.OfType<Note>().ToList();
-                        for (var e = onlySetVolumes.Count - 1; e >= 1; e--) {
-                            var lastEntity = onlyNotes[e - 1];
-                            var entity = onlyNotes[e];
-
-                            if (lastEntity.Value == entity.Value) entity.Value = "";
-                        }
-
-                        for (var e = 0; e < entities.Count; e++) {
-                            if (entities[e] is Note note) {
-                                var dcbs = new List<string>(note.ToDcB());
-
-                                var count = 0;
-                                for (var n = e + 1; n < entities.Count; n++) {
-                                    if (!(entities[n] is Note note2)) break;
-
-                                    dcbs.AddRange(note2.ToDcB());
-                                    count++;
-                                }
-
-                                e += count;
-
-                                for (var dcb = 0; dcb < dcbs.Count; dcb += 16) {
-                                    result += "\tdc.b\t";
-                                    var notes = dcbs.GetRange(dcb, dcb + 16 > dcbs.Count ? dcbs.Count - dcb : 16);
-                                    for (var n = 0; n < notes.Count; n++) {
-                                        result += notes[n];
-
-                                        if (n != notes.Count - 1) result += ", ";
-                                    }
-
-                                    result += "\n";
-                                }
-                            } else result += $"\t{entities[e]}\n";
-                        }
-
-                        //result = entities.Aggregate(result, (c, n) => c + $"\t{n}\n");
-                        
-                        result += "\tsRet\n\n";
+                        result.Write("\tsRet\n\n");
                     }
 
                     channelData += $"\tsCall\t{pattern.AmpsName}\n";
                 }
 
-                result += $"{channelData}\tsStop\n\n";
+                result.Write($"{channelData}\tsStop\n\n");
             }
             
-            // proceed dac
-            var dac = Channels[5];
-            var dacChannelData = $"\n{labelName}_DAC1:\n";
+            // proceed notes from dac
+            var dacChannel = Channels[5];
+
+            var dacChannelData = $"\n{labelName}_FM6:\n";
+            
             for (var p_i = 0; p_i < TotalRowsInPatternMatrix; p_i++) {
-                var pattern = dac.Patterns[PatternMatrixValues[5][p_i]];
+                var pattern = dacChannel.Patterns[p_i];
 
                 if (pattern.AmpsName == null)
                     pattern =
-                        dac.Patterns.FirstOrDefault(p => !ReferenceEquals(p, pattern) && p.Equals(pattern)) ??
+                        dacChannel.Patterns.FirstOrDefault(p => !ReferenceEquals(p, pattern) && p.MatrixValue == pattern?.MatrixValue && p.AmpsName != null) ??
                         pattern;
 
                 if (pattern.AmpsName == null) {
-                    pattern.AmpsName = $"{labelName}_DAC1_{p_i}";
+	                pattern.AmpsName = $"{labelName}_FM6_{p_i}";
+	                result.Write($"{pattern.AmpsName}:\n");
 
-                    result += $"{pattern.AmpsName}:\n\tsRet\n\n";
+                    List<IEntity> entities = new List<IEntity>();
+
+                    bool isNotes = true ^ Program.ReverseDacChanges;
+                    
+                    for (var r_i = 0; r_i < pattern.Rows.Length; r_i++) {
+                        var row = pattern.Rows[r_i];
+
+                        var dacChange = row.Effects.FirstOrDefault(e => e.Code == 0x17);
+                        if (dacChange != null) isNotes = dacChange.Value == 0;
+
+                        if (isNotes) {
+                            if (row.Volume != -1) entities.Add(new SetVolume(0x7F - row.Volume));
+
+                            if (row.Instrument != -1) entities.Add(new SetVoice(Instruments[row.Instrument].FM.Offset));
+
+                            entities.AddRange(row.Effects.Select(e => e.ToAmpsCoord())
+                                .Where(e => e != null));
+                        }
+
+                        if (row.Note == 100)
+                            entities.Add(new Note(isNotes ? Note.nRst : Note.sHold, r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime));
+                        else if (row.Note == 0 && row.Octave == 0)
+                            entities.Add(new Note(Note.sHold, r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime));
+                        else entities.Add(new Note(isNotes ? row.Note : 13, isNotes ? row.Octave : -1, r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime));
+                    }
+
+                    // opts
+                    SumHolds(entities);
+                    CombineHoldsWithNote(entities);
+                    SumHolds(entities);
+                    RemoveDuplicateSetVolumes(entities);
+                    OptimizeDuplicateNotes(entities);
+
+                    ExportEntities(entities, result);
+                    
+                    result.Write("\tsRet\n\n");
                 }
 
                 dacChannelData += $"\tsCall\t{pattern.AmpsName}\n";
             }
 
-            result += $"{dacChannelData}\tsStop\n\n{labelName}_DAC2:\n\tsStop\n\n";
+            result.Write($"{dacChannelData}\tsStop\n\n");
+
+            foreach (var p in dacChannel.Patterns) p.AmpsName = null;
+
+            // proceed dac
+            dacChannelData = $"\n{labelName}_DAC1:\n";
+            for (var p_i = 0; p_i < TotalRowsInPatternMatrix; p_i++) {
+                var pattern = dacChannel.Patterns[p_i];
+
+                if (pattern.AmpsName == null)
+                    pattern =
+                        dacChannel.Patterns.FirstOrDefault(p => !ReferenceEquals(p, pattern) && p.MatrixValue == pattern?.MatrixValue && p.AmpsName != null) ??
+                        pattern;
+
+                if (pattern.AmpsName == null) {
+	                pattern.AmpsName = $"{labelName}_DAC1_{p_i}";
+	                result.Write($"{pattern.AmpsName}:\n");
+
+                    List<IEntity> entities = new List<IEntity>();
+
+                    bool isSamples = false | Program.ReverseDacChanges;
+                    
+                    for (var r_i = 0; r_i < pattern.Rows.Length; r_i++) {
+                        var row = pattern.Rows[r_i];
+
+                        var dacChange = row.Effects.FirstOrDefault(e => e.Code == 0x17);
+                        if (dacChange != null) isSamples = dacChange.Value != 0;
+
+                        if (isSamples) {
+                            if (row.Volume != -1) entities.Add(new SetVolume(0x7F - row.Volume));
+
+                            if (row.Instrument != -1) entities.Add(new SetVoice(Instruments[row.Instrument].FM.Offset));
+
+                            entities.AddRange(row.Effects.Select(e => e.ToAmpsCoord())
+                                .Where(e => e != null));
+                        }
+
+                        if (row.Note == 100)
+                            entities.Add(new Note(isSamples ? Note.nRst : Note.sHold, r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime));
+                        else if (row.Note == 0 && row.Octave == 0)
+                            entities.Add(new Note(Note.sHold, r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime));
+                        else entities.Add(new Note(isSamples ? row.Note : 13, isSamples ? row.Octave : -1, r_i % 2 == 0 ? Tempo.EvenTime : Tempo.OddTime));
+                    }
+
+                    // opts
+                    SumHolds(entities);
+                    CombineHoldsWithNote(entities);
+                    SumHolds(entities);
+                    RemoveDuplicateSetVolumes(entities);
+                    OptimizeDuplicateNotes(entities);
+
+                    ExportEntities(entities, result);
+                    
+                    result.Write("\tsRet\n\n");
+                }
+
+                dacChannelData += $"\tsCall\t{pattern.AmpsName}\n";
+            }
+
+            result.Write($"{dacChannelData}\tsStop\n\n{labelName}_DAC2:\n\tsStop\n\n");
 
             // proceed psgs
             for (var i = 7; i < 10; i++) {
@@ -281,16 +312,100 @@ namespace dmf2amps.Models {
                     if (pattern.AmpsName == null) {
                         pattern.AmpsName = $"{labelName}_PSG{i - 6}_{p_i}";
 
-                        result += $"{pattern.AmpsName}:\n\tsRet\n\n";
+                        result.Write($"{pattern.AmpsName}:\n\tsRet\n\n");
                     }
 
                     channelData += $"\tsCall\t{pattern.AmpsName}\n";
                 }
 
-                result += $"{channelData}\tsStop\n\n";
+                result.Write($"{channelData}\tsStop\n\n");
             }
+        }
 
-            return result;
+        #region Optimizations
+        
+        private void SumHolds(List<IEntity> entities) {
+            for (var e = 1; e < entities.Count; e++) {
+                if (!(entities[e] is Note entity) || !(entities[e - 1] is Note lastEntity)) continue;
+                if (lastEntity.Value != entity.Value || entity.Value != Note.sHold) continue;
+
+                if (lastEntity.Duration + entity.Duration > 0x7F) {
+                    entity.Duration = lastEntity.Duration + entity.Duration - 0x7F;
+                    lastEntity.Duration = 0x7F;
+                } else {
+                    lastEntity.Duration += entity.Duration;
+                    entities.Remove(entity);
+                    e--;
+                }
+            }
+        }
+
+        private void CombineHoldsWithNote(List<IEntity> entities) {
+            for (var e = 1; e < entities.Count; e++) {
+                if (!(entities[e] is Note entity) || !(entities[e - 1] is Note lastEntity)) continue;
+                if (entity.Value != Note.sHold || e == entities.Count - 1) continue;
+
+                if (lastEntity.Duration + entity.Duration > 0x7F) {
+                    entity.Duration = lastEntity.Duration + entity.Duration - 0x7F;
+                    lastEntity.Duration = 0x7F;
+                } else {
+                    lastEntity.Duration += entity.Duration;
+                    entities.Remove(entity);
+                    e--;
+                }
+            }
+        }
+
+        private void RemoveDuplicateSetVolumes(List<IEntity> entities) {
+            var onlySetVolumes = entities.OfType<SetVoice>().ToList();
+            for (var e = 1; e < onlySetVolumes.Count; e++) {
+                var lastEntity = onlySetVolumes[e - 1];
+                var entity = onlySetVolumes[e];
+
+                if (lastEntity.Value == entity.Value) entities.Remove(entity);
+            }
+        }
+
+        private void OptimizeDuplicateNotes(List<IEntity> entities) {
+            var onlyNotes = entities.OfType<Note>().ToList();
+            for (var e = onlyNotes.Count - 1; e >= 1; e--) {
+                var lastEntity = onlyNotes[e - 1];
+                var entity = onlyNotes[e];
+
+                if (lastEntity.Value == entity.Value) entity.Value = "";
+            }
+        }
+        
+        #endregion
+
+        private void ExportEntities(List<IEntity> entities, StreamWriter result) {
+            for (var e = 0; e < entities.Count; e++) {
+                if (entities[e] is Note note) {
+                    var dcbs = new List<string>(note.ToDcB());
+
+                    var count = 0;
+                    for (var n = e + 1; n < entities.Count; n++) {
+                        if (!(entities[n] is Note note2)) break;
+
+                        dcbs.AddRange(note2.ToDcB());
+                        count++;
+                    }
+
+                    e += count;
+
+                    for (var dcb = 0; dcb < dcbs.Count; dcb += 16) {
+                        result.Write("\tdc.b\t");
+                        var notes = dcbs.GetRange(dcb, dcb + 16 > dcbs.Count ? dcbs.Count - dcb : 16);
+                        for (var n = 0; n < notes.Count; n++) {
+                            result.Write(notes[n]);
+
+                            if (n != notes.Count - 1) result.Write(", ");
+                        }
+
+                        result.Write("\n");
+                    }
+                } else result.Write($"\t{entities[e]}\n");
+            }
         }
 
         private string GenerateLabelName() => new Regex("[^A-Za-z]").Replace(SongName, "");

@@ -13,7 +13,8 @@ namespace dmf2amps.Models.Amps {
             "nA",
             "nBb",
             "nB",
-            "nC"
+            "nC",
+            sHold
         };
 
         public const string nRst = "nRst";
